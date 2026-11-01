@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `visits_active_owner_date` ON `visits` (`user_id`,`visit_date`) WHERE "visits"."status" IN ('pending','approved','inside');
