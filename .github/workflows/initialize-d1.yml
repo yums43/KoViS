@@ -1,0 +1,49 @@
+name: KoVIS D1 initial schema (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type INITIALIZE-KOVIS-D1 to confirm this is a new, empty database'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  initialize:
+    if: ${{ github.event.inputs.confirmation == 'INITIALIZE-KOVIS-D1' }}
+    runs-on: ubuntu-latest
+    environment: kovis-database
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate credentials are configured
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          test -n "$CF_API_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN secret is missing"; exit 1; }
+      - name: Check database is empty
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: "6210b83d7f45ae7e625c3528d9e7826b"
+        run: |
+          npx --yes wrangler@4.92.0 d1 execute kovis-production --remote --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE '_cf_%' AND name NOT LIKE 'sqlite_%';" --json > /tmp/kovis-tables.json
+          node --input-type=module -e "import fs from 'node:fs';const j=JSON.parse(fs.readFileSync('/tmp/kovis-tables.json','utf8'));if(!Array.isArray(j)||!Array.isArray(j[0]?.results)||j[0].results.length){console.error('Database is not empty or results are unexpected. Refusing to initialize.',JSON.stringify(j));process.exit(1)}"
+      - name: Apply base schema
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: "6210b83d7f45ae7e625c3528d9e7826b"
+        run: npx --yes wrangler@4.92.0 d1 execute kovis-production --remote --file drizzle/0000_nervous_roxanne_simpson.sql
+      - name: Apply active-visit constraint
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: "6210b83d7f45ae7e625c3528d9e7826b"
+        run: npx --yes wrangler@4.92.0 d1 execute kovis-production --remote --file drizzle/0001_fearless_masked_marvel.sql
+      - name: Apply native authentication schema
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: "6210b83d7f45ae7e625c3528d9e7826b"
+        run: npx --yes wrangler@4.92.0 d1 execute kovis-production --remote --file drizzle/0002_native_auth.sql
+      - name: Confirm table count
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: "6210b83d7f45ae7e625c3528d9e7826b"
+        run: npx --yes wrangler@4.92.0 d1 execute kovis-production --remote --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
