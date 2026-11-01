@@ -16,6 +16,6 @@ export async function POST(request: Request) {
       database().prepare("INSERT INTO auth_credentials (user_id,password_hash,password_salt,password_algorithm,password_iterations,password_changed_at) VALUES (?,?,?,'PBKDF2-SHA256',?,?)").bind(id,hash,salt,passwordIterations(),new Date().toISOString())
     ]);
     const token=await issueSession(id);
-    return noStore({ok:true,role:"visitor",emailVerificationRequired:true},201,sessionCookie(token));
+    return noStore({ok:true,role:"visitor",emailVerificationImplemented:false},201,sessionCookie(token));
   } catch { return noStore({error:"Pendaftaran tidak berjaya. E-mel mungkin sudah digunakan."},409); }
 }
