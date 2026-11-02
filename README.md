@@ -63,3 +63,27 @@ Simpan keseluruhan repositori ini ke GitHub. Untuk penerbitan fungsi penuh, guna
 ## Verifikasi
 
 `pnpm test` menjalankan handler API sebenar dengan migrasi SQLite dan identiti platform yang dimock. Ujian meliputi semua peralihan lawatan, akses pemilikan, pendaftaran peranan tetap, sekatan pengawal, tindakan bantuan, kadar permintaan, persaingan Check-In, tamat tempoh, dataset demo, audit, penapisan CSV dan rekod selepas restart. Login ChatGPT sebenar perlu disahkan melalui laman yang diterbitkan.
+
+## Release 0.2.0 — 2 November 2026
+
+This is the complete Workers/D1 application at the existing KoVIS Sites project.
+The separate Python pilot at `kovis.dannyfitri.uk` is a different deployment;
+copying this source into the pilot Docker folder does not upgrade that service.
+
+- Admin dashboard guides first-time directory and guard setup.
+- Visitors see a clear message when no active destination/host is available.
+- Background refresh no longer replaces unsaved policy, profile or directory edits.
+- Public login and registration show connection errors and prevent submission while unavailable.
+- Malformed API payloads return 400; `/api/health` checks database readiness and reports the release.
+
+### Start using the full application
+
+1. Open the existing private Site and sign in with the owner account already configured.
+2. In **Jabatan & pegawai**, add actual departments/locations, then their hosts.
+3. In **Pengguna & akses**, add each guard using their actual ChatGPT email.
+4. Keep demo records in **Data demonstrasi**. Never use invented staff as live directory entries.
+5. Review access before inviting real visitors. This release preserves owner-only Site access.
+
+Tests use temporary SQLite and mocked platform identities, never production records.
+Live sign-in and multi-user browser verification need the actual accounts. No email/password
+credentials or example users have been added to production by this release.

@@ -55,5 +55,19 @@ try{
  sql.close();open();equal(sql.prepare('SELECT count(*) AS n FROM visits WHERE dataset=\'live\'').get().n,5,'Records survive DB restart');
  const guard=sql.prepare("SELECT * FROM users WHERE email='guard@example.com'").get();await post('staff',{value:{...guard,active:0}});identity('guard');equal((await get()).status,403);
  const csrf=await POST(new Request('https://kovis.test/api/kovis',{method:'POST',headers:{origin:'https://evil.test'},body:'{}'}));equal(csrf.status,403,'Cross-site write blocked');
+ identity('owner');
+ for(const body of [null,[],"invalid",42,{}, {action:'policy',value:null},{action:'staff',value:[]},{action:'visit',value:'bad'}]){
+  const response=await POST(new Request('https://kovis.test/api/kovis',{method:'POST',headers:{origin:'https://kovis.test'},body:JSON.stringify(body)}));
+  equal(response.status,400,'Malformed request is a client error');
+ }
+ const malformed=await POST(new Request('https://kovis.test/api/kovis',{method:'POST',headers:{origin:'https://kovis.test'},body:'{'}));equal(malformed.status,400,'Invalid JSON rejected');
+ identity('visitor');clock+=60000;
+ const collision=await Promise.all([1,2].map(()=>POST(new Request('https://kovis.test/api/kovis',{method:'POST',headers:{origin:'https://kovis.test'},body:JSON.stringify({action:'visit',value:{...form,visit_date:'2026-11-03'}})}))));
+ equal(collision.map(r=>r.status).sort().join(','),'200,409','Concurrent active requests create exactly one visit');
+ identity('owner');const future=sql.prepare("SELECT * FROM visits WHERE visit_date='2026-11-03'").get();await post('approve',{id:future.id});
+ identity('visitor');await post('checkin',{id:future.id},409);equal(visit(future.id).checkin_at,null,'Future visit cannot check in early');
+ let healthSource=readFileSync('app/api/health/route.ts','utf8').replace("import {env} from 'cloudflare:workers';","const env={DB:globalThis.__testDB};");transpile(healthSource,'health.mjs');const health=await import(join(temp,'health.mjs'));
+ const healthy=await health.GET();equal(healthy.status,200);equal((await healthy.json()).version,'0.2.0');
+ const savedPrepare=globalThis.__testDB.prepare;globalThis.__testDB.prepare=()=>{throw Error('offline');};equal((await health.GET()).status,503,'Health fails when database unavailable');globalThis.__testDB.prepare=savedPrepare;
  console.log(`PASS: ${assertions} assertions — actual API route, SQLite migrations, identity mocked.`);
 }finally{sql.close();globalThis.Date=NativeDate;rmSync(temp,{recursive:true,force:true});}
